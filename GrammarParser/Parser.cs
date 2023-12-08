@@ -29,23 +29,81 @@ namespace GrammarParser
         private Node ParseExpression()
         {
             var node = new Node { Type = "Expression" };
-
-            // Parse pierwszego Term
             node.Children.Add(ParseTerm());
 
-            // Parsowanie dalszej części wyrażenia
-            while (CurrentChar() == '+')
+            while (true)
             {
-                Advance(); // Przesunięcie o znak '+'
-                node.Children.Add(ParseTerm()); // Parse kolejnego Term
+                var op = FindOperator();
+                if (op == "+" || op == "-")
+                {
+                    Advance(op.Length);
+                    node.Children.Add(new Node { Type = "Operator", Value = op });
+                    node.Children.Add(ParseTerm());
+                }
+                else
+                {
+                    break;
+                }
             }
 
             return node;
         }
 
+        private string FindOperator()
+        {
+            foreach (var op in _grammar.Operators.Keys)
+            {
+                if (_input.Substring(_position).StartsWith(op))
+                {
+                    return op;
+                }
+            }
+            return null;
+        }
+
         private Node ParseTerm()
         {
             var node = new Node { Type = "Term" };
+            node.Children.Add(ParseFactor());
+
+            while (true)
+            {
+                var op = FindOperator();
+                if (op == "*" || op == "/")
+                {
+                    Advance(op.Length);
+                    node.Children.Add(new Node { Type = "Operator", Value = op });
+                    node.Children.Add(ParseFactor());
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return node;
+        }
+
+        private Node ParseFactor()
+        {
+            if (CurrentChar() == '(')
+            {
+                Advance(); // Przesuń pozycję za nawias otwierający '('
+                var node = ParseExpression();
+                if (CurrentChar() != ')')
+                {
+                    throw new Exception("Oczekiwano nawiasu zamykającego ')'");
+                }
+                Advance(); // Przesuń pozycję za nawias zamykający ')'
+                return node;
+            }
+
+            return ParseNumber();
+        }
+
+        private Node ParseNumber()
+        {
+            var node = new Node { Type = "Number" };
 
             while (char.IsDigit(CurrentChar()))
             {
@@ -55,6 +113,8 @@ namespace GrammarParser
 
             return node;
         }
+
+
 
         private char CurrentChar()
         {
@@ -66,10 +126,11 @@ namespace GrammarParser
             return '\0'; // Znak końca ciągu
         }
 
-        private void Advance()
+        private void Advance(int steps = 1)
         {
-            _position++;
+            _position += steps;
         }
     }
+
 
 }
